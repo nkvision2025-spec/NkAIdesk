@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NkAIdesk - Fast Access</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body { background: #0f172a; height: 100vh; overflow: hidden; font-family: 'Segoe UI', sans-serif; color: white; display: flex; user-select: none; }
+        input { user-select: text !important; cursor: text; }
+
+        #sidebar { width: 260px; background: #0a0f1e; border-right: 1px solid rgba(255,255,255,0.05); display: flex; flex-direction: column; padding: 15px 12px; z-index: 100; }
+        .sidebar-header { display: flex; align-items: center; gap: 10px; margin-bottom: 25px; padding: 0 5px; }
+        .user-logo { width: 40px; height: 40px; background: #22c55e; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: bold; cursor: pointer; flex-shrink: 0; overflow: hidden; font-size: 16px; }
+        .user-logo img { width: 100%; height: 100%; object-fit: cover; }
+        .brand-name { font-size: 15px; font-weight: 800; color: #f8fafc; }
+        .nav-controls { display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.03); padding: 2px 10px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.05); margin-left: auto; }
+        .nav-arrow { cursor: pointer; font-size: 12px; color: #64748b; transition: 0.2s; padding: 4px; }
+        .nav-arrow:hover { color: #38bdf8; }
+        .page-indicator { font-size: 16px; font-weight: 900; color: #38bdf8; min-width: 14px; text-align: center; }
+
+        .sidebar-item { display: flex; align-items: center; padding: 10px 14px; margin-bottom: 4px; border-radius: 10px; cursor: pointer; transition: 0.2s; color: #94a3b8; font-size: 13.5px; position: relative; }
+        .sidebar-item i { width: 18px; margin-right: 12px; }
+        .sidebar-item:hover { background: rgba(255,255,255,0.05); color: white; }
+        .sidebar-item.active { background: rgba(34, 197, 94, 0.1); color: #22c55e; }
+
+        #main-content { flex: 1; display: flex; flex-direction: column; position: relative; }
+        #desktop-area { flex: 1; position: relative; overflow-y: auto; background: transparent; padding: 20px; }
+        
+        /* Search Grid Style */
+        .search-active #desktop-area { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 110px)); gap: 10px; align-content: start; }
+        .search-active .desktop-icon { position: relative !important; left: 0 !important; top: 0 !important; }
+
+        #selection-rect { position: absolute; border: 1px solid #38bdf8; background: rgba(56, 189, 248, 0.2); pointer-events: none; display: none; z-index: 9999; }
+
+        .desktop-icon { position: absolute; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 12px; cursor: pointer; transition: background 0.15s; text-align: center; padding: 10px; width: 100px; height: 110px; z-index: 10; border: 1px solid transparent; }
+        .desktop-icon:hover { background: rgba(255, 255, 255, 0.08); }
+        .desktop-icon.selected { background: rgba(56, 189, 248, 0.2); border-color: rgba(56, 189, 248, 0.5); }
+        .icon-img { width: 44px; height: 44px; border-radius: 8px; margin-bottom: 8px; object-fit: contain; pointer-events: none; }
+        .desktop-icon span { font-size: 11px; color: #f1f5f9; width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; pointer-events: none; display: block; padding: 0 4px; }
+
+        .taskbar { height: 48px; background: #0a0f1e; border-top: 1px solid rgba(255,255,255,0.05); display: flex; align-items: center; padding: 0 20px; flex-shrink: 0; }
+        #clock-area { margin-left: auto; text-align: right; font-size: 11px; color: #64748b; line-height: 1.2; }
+
+        #context-menu { display: none; position: fixed; background: #1e293b; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 5px 0; z-index: 10000; min-width: 160px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .menu-item { padding: 8px 15px; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 10px; }
+        .menu-item:hover { background: #38bdf8; color: #0f172a; }
+
+        .modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #1e293b; border-radius: 16px; padding: 24px; width: 420px; z-index: 6000; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
+        .modal input { width: 100%; background: #0f172a; border: 1px solid #334155; padding: 10px; border-radius: 8px; color: white; outline: none; margin-bottom: 12px; }
+        
+        #msg-box { position: fixed; bottom: 65px; right: 20px; background: #22c55e; color: white; padding: 12px 24px; border-radius: 12px; font-size: 14px; display: none; z-index: 9999; box-shadow: 0 5px 15px rgba(0,0,0,0.3); border-left: 4px solid #15803d; }
+        .drive-btn { background: #334155; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: bold; transition: 0.2s; cursor: pointer; border: 1px solid rgba(255,255,255,0.1); color: #cbd5e1; }
+        .drive-btn.active { background: #38bdf8; color: #0f172a; border-color: #38bdf8; }
+    </style>
+</head>
+<body class="">
+
+    <div id="msg-box">Action Done!</div>
+    <div id="selection-rect"></div>
+
+    <div id="sidebar">
+        <div class="sidebar-header">
+            <div class="user-logo" onclick="document.getElementById('logoInput').click()">
+                <div id="displayLogo">NK</div>
+                <input type="file" id="logoInput" hidden accept="image/*" onchange="uploadLogo(event)">
+            </div>
+            <span class="brand-name">NkDesk</span>
+            <div class="nav-controls">
+                <i class="fas fa-chevron-left nav-arrow" onclick="changeDeskPage(-1)"></i>
+                <span class="page-indicator" id="pageDisplay">1</span>
+                <i class="fas fa-chevron-right nav-arrow" onclick="changeDeskPage(1)"></i>
+            </div>
+        </div>
+
+        <div id="category-list" class="flex-1 overflow-y-auto"></div>
+        
+        <div class="mt-4 pt-4 border-t border-white/5 space-y-1">
+            <div class="sidebar-item" onclick="openModal('addCategoryModal')">
+                <i class="fas fa-plus-circle text-sky-400"></i><span>Add Category</span>
+            </div>
+            <div class="sidebar-item" onclick="openModal('addShortcutModal')">
+                <i class="fas fa-link text-green-500"></i><span>Add Shortcut</span>
+            </div>
+            <div class="sidebar-item" onclick="openModal('addComputerShortcutModal')">
+                <i class="fas fa-hdd text-blue-400"></i><span>Add Comp Shortcut</span>
+            </div>
+            <div class="sidebar-item" onclick="exportBackup()">
+                <i class="fas fa-file-export text-orange-400"></i><span>Export JSON</span>
+            </div>
+            <div class="sidebar-item" onclick="document.getElementById('importFile').click()">
+                <i class="fas fa-file-import text-purple-400"></i><span>Import JSON</span>
+            </div>
+            <input type="file" id="importFile" hidden onchange="importBackup(event)">
+        </div>
+    </div>
+
+    <div id="main-content">
+        <div class="p-4 flex items-center justify-between">
+            <div class="bg-white/5 px-4 py-2 rounded-lg flex items-center border border-white/5">
+                <i class="fas fa-search text-gray-500 text-sm"></i>
+                <input type="text" id="global-search" placeholder="Search shortcuts..." oninput="handleSearch(this.value)" class="bg-transparent border-none outline-none ml-3 text-sm w-48 text-white">
+            </div>
+            <div class="text-[11px] text-gray-500 font-bold uppercase tracking-widest bg-white/5 px-3 py-1 rounded" id="category-title">
+                Category: General
+            </div>
+        </div>
+
+        <div id="desktop-area"></div>
+
+        <div class="taskbar">
+            <i class="fab fa-windows text-sky-400 text-xl"></i>
+            <span class="ml-4 text-[9px] text-gray-600 tracking-[0.3em] font-bold">NKAI WORKSPACE(PersonalDesk)</span>
+            <div id="clock-area">
+                <div id="time" class="text-gray-200 font-bold"></div>
+                <div id="date"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Context Menu -->
+    <div id="context-menu">
+        <div class="menu-item" id="menu-rename" onclick="handleRename()"><i class="fas fa-edit"></i> Rename</div>
+        <div class="menu-item" id="menu-copy" onclick="handleCopy()"><i class="fas fa-copy"></i> Copy</div>
+        <div class="menu-item" id="menu-cut" onclick="handleCut()"><i class="fas fa-scissors"></i> Cut</div>
+        <div class="menu-item" id="menu-paste" onclick="handlePaste()"><i class="fas fa-paste"></i> Paste</div>
+        <div class="menu-item text-red-400" id="menu-delete" onclick="handleDelete()"><i class="fas fa-trash"></i> Delete</div>
+    </div>
+
+    <!-- Modals -->
+    <div id="addCategoryModal" class="modal">
+        <h2 class="text-lg font-bold mb-4">New Category</h2>
+        <input type="text" id="newCatName" placeholder="Category Name">
+        <div class="flex gap-2">
+            <button onclick="saveCategory()" class="flex-1 bg-sky-600 py-2.5 rounded-lg text-sm font-bold">Create</button>
+            <button onclick="closeModals()" class="flex-1 bg-slate-700 py-2.5 rounded-lg text-sm font-bold">Cancel</button>
+        </div>
+    </div>
+
+    <div id="addShortcutModal" class="modal">
+        <h2 class="text-lg font-bold mb-4">New Web Shortcut</h2>
+        <input type="text" id="scName" placeholder="Shortcut Name">
+        <input type="text" id="scUrl" placeholder="URL (google.com)">
+        <div class="flex gap-2">
+            <button onclick="saveShortcut()" class="flex-1 bg-green-600 py-2.5 rounded-lg text-sm font-bold">Save</button>
+            <button onclick="closeModals()" class="flex-1 bg-slate-700 py-2.5 rounded-lg text-sm font-bold">Cancel</button>
+        </div>
+    </div>
+
+    <div id="addComputerShortcutModal" class="modal">
+        <h2 class="text-lg font-bold mb-4">Add Computer Shortcut</h2>
+        <div class="bg-blue-500/10 border border-blue-500/30 p-3 rounded-lg mb-4">
+            <label class="text-[10px] text-blue-400 font-bold uppercase mb-2 block">Selected Drive</label>
+            <div class="flex flex-wrap gap-2 mb-2" id="drive-selector">
+                <button onclick="setDrive('C:')" class="drive-btn active">C:</button>
+                <button onclick="setDrive('D:')" class="drive-btn">D:</button>
+                <button onclick="setDrive('E:')" class="drive-btn">E:</button>
+                <button onclick="setDrive('F:')" class="drive-btn">F:</button>
+                <button onclick="setDrive('G:')" class="drive-btn">G:</button>
+                <button onclick="setDrive('H:')" class="drive-btn">H:</button>
+            </div>
+        </div>
+        <input type="text" id="compScName" placeholder="Shortcut Name">
+        <div class="flex items-center gap-2 mb-3">
+            <input type="text" id="compScUrl" placeholder="C:\Example\Path" class="mb-0">
+            <button onclick="document.getElementById('folderPicker').click()" class="bg-blue-600 p-2.5 rounded-lg shrink-0">
+                <i class="fas fa-folder-open"></i>
+            </button>
+            <input type="file" id="folderPicker" hidden webkitdirectory directory onchange="handleFolderSelect(event)">
+        </div>
+        <div class="flex gap-2">
+            <button onclick="saveComputerShortcut()" class="flex-1 bg-blue-600 py-2.5 rounded-lg text-sm font-bold">Create</button>
+            <button onclick="closeModals()" class="flex-1 bg-slate-700 py-2.5 rounded-lg text-sm font-bold">Cancel</button>
+        </div>
+    </div>
+
+    <script>
+        let deskPage = 1;
+        let draggedId = null;
+        let offset = { x: 0, y: 0 };
+        let clipboard = null; // { type: 'copy'|'cut', itemType: 'shortcut'|'category', data: [...] }
+        let contextTarget = { type: null, id: null };
+        let selectedDrive = 'C:';
+
+        let state = JSON.parse(localStorage.getItem('nkai_v12_final')) || {
+            categories: [{ id: 'cat-1', name: 'General', page: 1 }],
+            shortcuts: [],
+            activeCategoryId: 'cat-1',
+            userLogo: null
+        };
+
+        let isSelecting = false;
+        let selectionStart = { x: 0, y: 0 };
+        let selectedIds = new Set();
+
+        function init() {
+            renderSidebar();
+            renderDesktop();
+            loadUserLogo();
+            updateClock();
+            setInterval(updateClock, 1000);
+
+            const area = document.getElementById('desktop-area');
+            
+            area.addEventListener('mousedown', (e) => {
+                if (e.button !== 0 || e.target.closest('.desktop-icon') || document.body.classList.contains('search-active')) return;
+                
+                isSelecting = true;
+                const rect = area.getBoundingClientRect();
+                selectionStart.x = e.clientX - rect.left;
+                selectionStart.y = e.clientY - rect.top;
+                
+                const box = document.getElementById('selection-rect');
+                box.style.width = '0px'; 
+                box.style.height = '0px';
+                box.style.left = selectionStart.x + 'px';
+                box.style.top = selectionStart.y + 'px';
+                box.style.display = 'block';
+
+                if(!e.ctrlKey) { selectedIds.clear(); renderSelection(); }
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                if (draggedId) handleDragging(e);
+                if (isSelecting) handleSelectionMove(e);
+            });
+
+            document.addEventListener('mouseup', () => {
+                if (draggedId) stopDragging();
+                if (isSelecting) { 
+                    isSelecting = false; 
+                    document.getElementById('selection-rect').style.display = 'none'; 
+                }
+            });
+
+            document.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                const icon = e.target.closest('.desktop-icon');
+                const sidebarItem = e.target.closest('.sidebar-item');
+                const sidebarArea = e.target.closest('#sidebar');
+
+                if (icon) {
+                    contextTarget = { type: 'shortcut', id: icon.id };
+                    if(!selectedIds.has(icon.id)) { selectedIds.clear(); selectedIds.add(icon.id); renderSelection(); }
+                } else if (sidebarItem) {
+                    contextTarget = { type: 'category', id: sidebarItem.dataset.id };
+                } else if (sidebarArea) {
+                    contextTarget = { type: 'sidebar', id: null };
+                } else {
+                    contextTarget = { type: 'desktop', id: null };
+                    if(!e.ctrlKey) { selectedIds.clear(); renderSelection(); }
+                }
+                showContextMenu(e);
+            });
+
+            document.addEventListener('click', (e) => { if(!e.target.closest('#context-menu')) hideMenu(); });
+        }
+
+        function handleSearch(val) {
+            const body = document.body;
+            if (val.trim() !== "") {
+                body.classList.add('search-active');
+            } else {
+                body.classList.remove('search-active');
+            }
+            renderDesktop();
+        }
+
+        function handleSelectionMove(e) {
+            const area = document.getElementById('desktop-area');
+            const rect = area.getBoundingClientRect();
+            const curX = e.clientX - rect.left, curY = e.clientY - rect.top;
+            
+            const x = Math.min(selectionStart.x, curX);
+            const y = Math.min(selectionStart.y, curY);
+            const w = Math.abs(selectionStart.x - curX);
+            const h = Math.abs(selectionStart.y - curY);
+            
+            const box = document.getElementById('selection-rect');
+            box.style.left = x + 'px'; box.style.top = y + 'px';
+            box.style.width = w + 'px'; box.style.height = h + 'px';
+
+            area.querySelectorAll('.desktop-icon').forEach(icon => {
+                const iL = icon.offsetLeft, iT = icon.offsetTop, iR = iL + icon.offsetWidth, iB = iT + icon.offsetHeight;
+                const inX = Math.max(x, iL) < Math.min(x + w, iR);
+                const inY = Math.max(y, iT) < Math.min(y + h, iB);
+                if (inX && inY) { selectedIds.add(icon.id); }
+            });
+            renderSelection();
+        }
+
+        function renderSelection() {
+            document.querySelectorAll('.desktop-icon').forEach(i => i.classList.toggle('selected', selectedIds.has(i.id)));
+        }
+
+        function renderDesktop() {
+            const area = document.getElementById('desktop-area');
+            const search = document.getElementById('global-search').value.toLowerCase();
+            area.innerHTML = '';
+            
+            const activeCat = state.categories.find(c => c.id === state.activeCategoryId);
+            document.getElementById('category-title').innerText = activeCat ? `Category: ${activeCat.name}` : "Search Results";
+
+            let filtered = state.shortcuts.filter(s => {
+                if (search) return s.name.toLowerCase().includes(search);
+                return s.catId === state.activeCategoryId && (s.page || 1) === deskPage;
+            });
+
+            filtered.forEach(sc => {
+                const icon = document.createElement('div');
+                icon.className = 'desktop-icon';
+                icon.id = sc.id;
+                
+                // Position logic: absolute for normal, relative (auto-grid) for search
+                if(!search) {
+                    icon.style.left = sc.x + 'px'; 
+                    icon.style.top = sc.y + 'px';
+                }
+
+                icon.onmousedown = (e) => {
+                    if (e.button === 0 && !search) {
+                        e.stopPropagation();
+                        if (!e.ctrlKey && !selectedIds.has(sc.id)) selectedIds.clear();
+                        selectedIds.add(sc.id); 
+                        renderSelection();
+                        startDragging(e, sc.id);
+                    }
+                };
+                icon.onclick = () => handleOpen(sc);
+                let imgUrl = sc.type === 'computer' ? 'https://cdn-icons-png.flaticon.com/512/1243/1243933.png' : `https://www.google.com/s2/favicons?sz=64&domain=${sc.url}`;
+                icon.innerHTML = `<img src="${imgUrl}" class="icon-img" onerror="this.src='https://cdn-icons-png.flaticon.com/512/1243/1243933.png'"><span>${sc.name}</span>`;
+                area.appendChild(icon);
+            });
+            renderSelection();
+        }
+
+        function renderSidebar() {
+            const list = document.getElementById('category-list'); 
+            list.innerHTML = '';
+            const pageCats = state.categories.filter(c => (c.page || 1) === deskPage);
+            
+            if(pageCats.length === 0) {
+                const newId = 'cat-' + Date.now();
+                state.categories.push({ id: newId, name: 'General', page: deskPage });
+                state.activeCategoryId = newId;
+                saveState();
+                return renderSidebar();
+            }
+
+            if(!pageCats.find(c => c.id === state.activeCategoryId)) {
+                state.activeCategoryId = pageCats[0].id;
+                saveState();
+            }
+
+            pageCats.forEach(cat => {
+                const item = document.createElement('div');
+                item.className = `sidebar-item ${cat.id === state.activeCategoryId ? 'active' : ''}`;
+                item.dataset.id = cat.id;
+                item.onclick = () => { state.activeCategoryId = cat.id; saveState(); renderSidebar(); renderDesktop(); };
+                item.innerHTML = `<i class="fas fa-folder"></i><span>${cat.name}</span>`;
+                list.appendChild(item);
+            });
+        }
+
+        function setDrive(d) { 
+            selectedDrive = d;
+            document.querySelectorAll('#drive-selector .drive-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.innerText === d);
+            });
+            let curPath = document.getElementById('compScUrl').value;
+            // If path already exists, update the drive part
+            if(curPath.includes(':\\')) {
+                document.getElementById('compScUrl').value = d + '\\' + curPath.split(':\\')[1];
+            } else {
+                document.getElementById('compScUrl').value = d + '\\' + curPath;
+            }
+        }
+
+        function handleFolderSelect(e) {
+            const files = e.target.files;
+            if (files.length > 0) {
+                const fullPath = files[0].webkitRelativePath;
+                const folderName = fullPath.split('/')[0];
+                document.getElementById('compScName').value = folderName;
+                document.getElementById('compScUrl').value = selectedDrive + '\\' + folderName;
+            }
+        }
+
+        function handleCopy() {
+            if (contextTarget.type === 'shortcut' && selectedIds.size > 0) {
+                clipboard = { 
+                    type: 'copy', 
+                    itemType: 'shortcut', 
+                    data: state.shortcuts.filter(s => selectedIds.has(s.id)).map(s => ({...s})) 
+                };
+                showMsg(`Copied ${selectedIds.size} shortcuts`);
+            } else if (contextTarget.type === 'category') {
+                const cat = state.categories.find(c => c.id === contextTarget.id);
+                clipboard = { 
+                    type: 'copy', 
+                    itemType: 'category', 
+                    data: [{...cat, shortcuts: state.shortcuts.filter(s => s.catId === cat.id).map(s => ({...s}))}] 
+                };
+                showMsg(`Category "${cat.name}" Copied`);
+            }
+            hideMenu();
+        }
+
+        function handleCut() {
+            if (contextTarget.type === 'shortcut' && selectedIds.size > 0) {
+                clipboard = { 
+                    type: 'cut', 
+                    itemType: 'shortcut', 
+                    data: state.shortcuts.filter(s => selectedIds.has(s.id)).map(s => ({...s})) 
+                };
+                showMsg(`Cut ${selectedIds.size} shortcuts`);
+            } else if (contextTarget.type === 'category') {
+                const cat = state.categories.find(c => c.id === contextTarget.id);
+                clipboard = { 
+                    type: 'cut', 
+                    itemType: 'category', 
+                    data: [{...cat, shortcuts: state.shortcuts.filter(s => s.catId === cat.id).map(s => ({...s}))}] 
+                };
+                showMsg(`Category "${cat.name}" Cut`);
+            }
+            hideMenu();
+        }
+
+        function handlePaste() {
+            if (!clipboard) return;
+
+            if (clipboard.itemType === 'shortcut') {
+                clipboard.data.forEach((item, index) => {
+                    if (clipboard.type === 'cut') {
+                        state.shortcuts = state.shortcuts.filter(s => s.id !== item.id);
+                    }
+                    const newItem = {
+                        ...item,
+                        id: 'sc-' + Date.now() + index,
+                        catId: state.activeCategoryId,
+                        page: deskPage,
+                        x: item.x + 20, y: item.y + 20
+                    };
+                    state.shortcuts.push(newItem);
+                });
+                if (clipboard.type === 'cut') clipboard = null;
+                showMsg("Shortcuts Pasted!");
+            } 
+            else if (clipboard.itemType === 'category') {
+                const catData = clipboard.data[0];
+                const newCatId = 'cat-' + Date.now();
+                
+                // Add the category
+                state.categories.push({
+                    id: newCatId,
+                    name: catData.name + (clipboard.type === 'copy' ? ' (Copy)' : ''),
+                    page: deskPage
+                });
+
+                // Add its shortcuts
+                catData.shortcuts.forEach((sc, idx) => {
+                    state.shortcuts.push({
+                        ...sc,
+                        id: 'sc-p-' + Date.now() + idx,
+                        catId: newCatId,
+                        page: deskPage
+                    });
+                });
+
+                if (clipboard.type === 'cut') {
+                    state.categories = state.categories.filter(c => c.id !== catData.id);
+                    state.shortcuts = state.shortcuts.filter(s => s.catId !== catData.id);
+                    clipboard = null;
+                }
+                showMsg("Category Pasted!");
+            }
+            
+            saveState(); renderSidebar(); renderDesktop(); hideMenu();
+        }
+
+        function handleDelete() {
+            if (confirm("Delete selected item?")) {
+                if (contextTarget.type === 'shortcut') {
+                    state.shortcuts = state.shortcuts.filter(s => !selectedIds.has(s.id));
+                    selectedIds.clear();
+                } else if (contextTarget.type === 'category') {
+                    state.categories = state.categories.filter(c => c.id !== contextTarget.id);
+                    state.shortcuts = state.shortcuts.filter(s => s.catId !== contextTarget.id);
+                }
+                saveState(); renderSidebar(); renderDesktop(); hideMenu();
+            }
+        }
+
+        function handleRename() {
+            const list = contextTarget.type === 'shortcut' ? state.shortcuts : state.categories;
+            const item = list.find(x => x.id === contextTarget.id);
+            const n = prompt("New Name:", item.name);
+            if (n) { item.name = n; saveState(); renderSidebar(); renderDesktop(); }
+            hideMenu();
+        }
+
+        function handleOpen(sc) {
+            if (sc.type === 'computer') {
+                const cmd = `explorer /e,"${sc.url}"`;
+                const temp = document.createElement('textarea');
+                temp.value = cmd; document.body.appendChild(temp);
+                temp.select(); document.execCommand('copy');
+                document.body.removeChild(temp);
+                showMsg("Path Copied! Win+R then Ctrl+V");
+            } else {
+                window.open(sc.url.startsWith('http') ? sc.url : 'https://' + sc.url, '_blank');
+            }
+        }
+
+        function saveComputerShortcut() {
+            const name = document.getElementById('compScName').value, path = document.getElementById('compScUrl').value;
+            if (name && path) {
+                state.shortcuts.push({ id: 'sc-' + Date.now(), name, url: path, type: 'computer', catId: state.activeCategoryId, page: deskPage, x: 50, y: 50 });
+                saveState(); renderDesktop(); closeModals();
+            }
+        }
+
+        function saveShortcut() {
+            const name = document.getElementById('scName').value, url = document.getElementById('scUrl').value;
+            if (name && url) {
+                state.shortcuts.push({ id: 'sc-' + Date.now(), name, url, type: 'web', catId: state.activeCategoryId, page: deskPage, x: 50, y: 50 });
+                saveState(); renderDesktop(); closeModals();
+            }
+        }
+
+        function saveCategory() {
+            const name = document.getElementById('newCatName').value;
+            if (name) {
+                const id = 'cat-' + Date.now();
+                state.categories.push({ id, name, page: deskPage });
+                state.activeCategoryId = id;
+                saveState(); renderSidebar(); closeModals();
+            }
+        }
+
+        function startDragging(e, id) { 
+            draggedId = id; 
+            const el = document.getElementById(id), r = el.getBoundingClientRect(); 
+            offset.x = e.clientX - r.left; 
+            offset.y = e.clientY - r.top; 
+            el.style.zIndex = 1000; 
+        }
+
+        function handleDragging(e) { 
+            const area = document.getElementById('desktop-area').getBoundingClientRect();
+            const el = document.getElementById(draggedId); 
+            el.style.left = (e.clientX - area.left - offset.x) + 'px'; 
+            el.style.top = (e.clientY - area.top - offset.y) + 'px'; 
+        }
+
+        function stopDragging() { 
+            if(!draggedId) return;
+            const sc = state.shortcuts.find(s => s.id === draggedId), el = document.getElementById(draggedId); 
+            if (sc) { sc.x = parseInt(el.style.left); sc.y = parseInt(el.style.top); saveState(); } 
+            el.style.zIndex = 10; 
+            draggedId = null; 
+        }
+
+        function changeDeskPage(d) { 
+            deskPage += d; if (deskPage < 1) deskPage = 1; 
+            document.getElementById('pageDisplay').innerText = deskPage; 
+            selectedIds.clear();
+            renderSidebar(); renderDesktop(); 
+        }
+
+        function saveState() { localStorage.setItem('nkai_v12_final', JSON.stringify(state)); }
+        function openModal(id) { document.getElementById(id).style.display = 'block'; }
+        function closeModals() { document.querySelectorAll('.modal').forEach(m => m.style.display = 'none'); }
+        
+        function showContextMenu(e) { 
+            const m = document.getElementById('context-menu'); 
+            m.style.display = 'block'; m.style.left = e.clientX + 'px'; m.style.top = e.clientY + 'px'; 
+            
+            const isSidebar = contextTarget.type === 'sidebar' || contextTarget.type === 'category';
+            const isDesktop = contextTarget.type === 'desktop' || contextTarget.type === 'shortcut';
+
+            document.getElementById('menu-rename').style.display = (contextTarget.id) ? 'flex' : 'none';
+            document.getElementById('menu-copy').style.display = (contextTarget.id) ? 'flex' : 'none';
+            document.getElementById('menu-cut').style.display = (contextTarget.id) ? 'flex' : 'none';
+            document.getElementById('menu-delete').style.display = (contextTarget.id) ? 'flex' : 'none';
+            
+            // Paste logic
+            let canPaste = false;
+            if (clipboard) {
+                if (clipboard.itemType === 'shortcut' && isDesktop) canPaste = true;
+                if (clipboard.itemType === 'category' && isSidebar) canPaste = true;
+            }
+            document.getElementById('menu-paste').style.display = canPaste ? 'flex' : 'none'; 
+        }
+
+        function hideMenu() { document.getElementById('context-menu').style.display = 'none'; }
+        function showMsg(t) { const b = document.getElementById('msg-box'); b.innerText = t; b.style.display = 'block'; setTimeout(() => b.style.display = 'none', 3000); }
+        function updateClock() { const n = new Date(); document.getElementById('time').innerText = n.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}); document.getElementById('date').innerText = n.toLocaleDateString(); }
+        function loadUserLogo() { if (state.userLogo) document.getElementById('displayLogo').innerHTML = `<img src="${state.userLogo}">`; }
+        function uploadLogo(e) { const f = e.target.files[0]; if (f) { const r = new FileReader(); r.onload = (ev) => { state.userLogo = ev.target.result; saveState(); loadUserLogo(); }; r.readAsDataURL(f); } }
+        function exportBackup() { const data = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state)); const a = document.createElement('a'); a.href = data; a.download = "nkai_backup.json"; a.click(); }
+        function importBackup(e) {
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                state = JSON.parse(ev.target.result);
+                saveState();
+                location.reload();
+            };
+            reader.readAsText(e.target.files[0]);
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>
